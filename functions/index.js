@@ -5,6 +5,7 @@ admin.initializeApp();
 
 exports.createGame = functions.https.onRequest(async (request, response) => {
     const name = request.query.name;
+    const username = request.query.username;
     inList = false;
     await admin.database().ref('/games').once('value', function (snapshot) {
         snapshot.forEach(function (childSnapshot) {
@@ -16,18 +17,35 @@ exports.createGame = functions.https.onRequest(async (request, response) => {
     } else {
         await admin.database().ref('/games').push({
             name: name,
-            available: true
+            available: true,
+            username: username
         });
         response.send(name + " created!");
     }
 });
 
 exports.showGames = functions.https.onRequest(async (request, response) => {
-    onlineGames = []
-    const data = await admin.database().ref('/games').once('value', function (snapshot) {
+    onlineGames = {}
+    await admin.database().ref('/games').once('value', function (snapshot) {
         snapshot.forEach(function (childSnapshot) {
+            var childKey = childSnapshot.key;
             var childData = childSnapshot.val();
-            onlineGames.push(childData)
+            onlineGames[childKey.toString()] = childData;
+        });
+    })
+    response.send(onlineGames);
+});
+
+exports.getGame = functions.https.onRequest(async (request, response) => {
+    const name = request.query.name;
+    onlineGames = {}
+    await admin.database().ref('/games').once('value', function (snapshot) {
+        snapshot.forEach(function (childSnapshot) {
+            var childKey = childSnapshot.key;
+            var childData = childSnapshot.val();
+            if (childData["name"] == name){
+                onlineGames[childKey.toString()] = childData;
+            }
         });
     })
     response.send(onlineGames);
@@ -35,6 +53,7 @@ exports.showGames = functions.https.onRequest(async (request, response) => {
 
 exports.joinGame = functions.https.onRequest(async (request, response) => {
     const name = request.query.name;
+    const username = request.query.username;
     var inList = false;
     var keyGame;
     var valueGame;
@@ -53,6 +72,7 @@ exports.joinGame = functions.https.onRequest(async (request, response) => {
             valueGame.available = false;
             valueGame.turn = 'O';
             valueGame.board = [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ']
+            valueGame.username2 = username;
             updates['/games/' + keyGame] = valueGame;
             admin.database().ref().update(updates);
             response.send('Joined to ' + name);
